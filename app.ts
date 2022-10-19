@@ -1,18 +1,20 @@
-import express, { Express, Request, Response } from 'express';
-import dotenv from 'dotenv';
-import { Server } from 'socket.io';
-import { createServer } from 'http';
-const ThingSpeakClient = require('thingspeakclient');
+const ThingSpeakClient = require("thingspeakclient");
+import express, { Express, Request, Response } from "express";
+import dotenv from "dotenv";
+import { createServer } from "http";
+import { Server } from "socket.io";
+dotenv.config();
+const port = process.env.PORT;
 
-//creating server
+// creating server
 const app: Express = express();
 const server = createServer(app);
+
 const io = new Server(server, {
-  transports: ['websocket', 'polling']
+  transports: ["websocket", "polling"]
 });
 //initializing web socket
 
-dotenv.config();
 // create the thingspeak client
 const client = new ThingSpeakClient({
   //server: `${process.env.THING_SPEAK_SERVER}`,
@@ -28,14 +30,12 @@ client.attachChannel(
     if (error) {
       console.log(error.message);
     } else {
-      console.log('Response => Connected!');
+      console.log("Response => Connected!");
     }
   }
 );
 
-const port = process.env.PORT;
-
-app.get('/', (req: Request, res: Response) => {
+app.get("/", (req: Request, res: Response) => {
   /*client.updateChannel(1788967, { field1: 1, field2: 2 }, function (err, resp) {
     if (!err && resp > 0) {
       console.log('update successfully. Entry number was: ' + resp);
@@ -43,10 +43,10 @@ app.get('/', (req: Request, res: Response) => {
       console.log(err.message);
     }
   });*/
-  res.send('Server Running');
+  res.send("Server Running");
 });
-app.get('/get-location', (req: Request, res: Response) => {
-  console.log('Yes');
+app.get("/get-location", (req: Request, res: Response) => {
+  console.log("Yes");
   client.getLastEntryInChannelFeed(
     1788967,
     null,
@@ -54,39 +54,41 @@ app.get('/get-location', (req: Request, res: Response) => {
       if (!error && response) {
         res.send({ data: response });
       } else {
-        console.log('Error => ' + error);
+        console.log("Error => " + error);
       }
     }
   );
 });
-/*
-client.getLastEntryInChannelFeed(1788967, null, (error, response) => {
-  if (!error && response) {
-    console.log('Success. Data => ', response);
-  } else {
-    console.log('Error => ' + error);
-  }
-});*/
+
 //socket io sending data to the front end every second
-io.on('connection', (socket: any) => {
+io.on("connection", (socket: any) => {
+  console.log(`
+  \n A socket has been connected: \nID: ${socket.id} \nOrigin: ${socket.handshake.headers.origin}`);
+  io.emit("congrats", {
+    msg: "Successfully Connected!"
+  });
   setInterval(() => {
     client.getLastEntryInChannelFeed(
       1788967,
       null,
       (error: any, response: any) => {
         if (!error && response) {
-          console.log('Success.');
           socket.send(response);
         } else {
-          console.log('Error => ' + error);
+          console.log("Error => " + error);
         }
       }
     );
     // console.log('topic: ' + topic + ', payload: ' + thePayload.toString());
     // socket.send(thePayload.toString());
   }, 2000);
+
+  socket.on("control", () => {
+    socket.emit("yes");
+    console.log("Yes");
+  });
 });
 
 server.listen(`${port}`, () => {
-  console.log(`🚀 server started on  http://localhost:${port}`);
+  console.log(`🚀 server started on http://localhost:${port}`);
 });
